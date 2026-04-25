@@ -41,10 +41,6 @@ export const signup = async (req, res) => {
   })
   .json({
     user,
-    success: "Signup Successfully"
-  });
-  .json({
-    user,
     success:"Signup Successfully"
   });
   } catch (err) {
