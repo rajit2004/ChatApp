@@ -66,7 +66,7 @@ export default function ChatWindow({ receiver }: { receiver: any }) {
           setMessages((prev) => [...prev, data]);
         });
 
-        // 5. Listen for status changes (private only)
+        // 5. Listen for status changes 
         socket.off("user_status_change");
         if (!isGroup) {
           socket.on("user_status_change", (data) => {
@@ -103,6 +103,24 @@ export default function ChatWindow({ receiver }: { receiver: any }) {
     setMessage("");
   };
 
+
+  const formatLastSeen = (lastSeen: Date | string) => {
+  const date = new Date(lastSeen);
+  const now = new Date();
+
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "last seen just now";
+  if (diffMins < 60) return `last seen ${diffMins} min ago`;
+  if (diffHours < 24) return `last seen today at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  if (diffDays === 1) return `last seen yesterday at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  if (diffDays < 7) return `last seen ${diffDays} days ago`;
+  return `last seen on ${date.toLocaleDateString([], { day: "numeric", month: "short" })}`;
+};
+
   return (
     <div className="h-full flex flex-col bg-[#111b21] text-white">
 
@@ -122,17 +140,14 @@ export default function ChatWindow({ receiver }: { receiver: any }) {
             {isGroup ? receiver.groupName : receiver.username}
           </p>
           <p className="text-xs text-[#8696a0]">
-            {isGroup
-              ? `${receiver.participants?.length} members`
-              : receiverStatus?.lastSeen === null
-              ? "online"
-              : receiverStatus?.lastSeen
-              ? `last seen ${new Date(receiverStatus.lastSeen).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}`
-              : "offline"}
-          </p>
+       {isGroup
+            ? `${receiver.participants?.length} members`
+            : receiverStatus?.lastSeen === null
+            ? "online"
+            : receiverStatus?.lastSeen
+            ? formatLastSeen(receiverStatus.lastSeen)
+            : "offline"}
+           </p>
         </div>
       </div>
 

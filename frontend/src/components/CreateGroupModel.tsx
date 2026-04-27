@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "react-toastify";
 
 export default function CreateGroupModal({
   contacts,
@@ -34,7 +35,7 @@ export default function CreateGroupModal({
 
   const handleSubmit = () => {
     if (!groupName.trim() || selectedMembers.length === 0) {
-      alert("Group name and at least one member are required");
+      toast.info("Group name and at least one member are required");
       return;
     }
     onCreateGroup(groupName, selectedMembers);
