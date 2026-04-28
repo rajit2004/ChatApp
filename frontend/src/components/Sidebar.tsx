@@ -261,7 +261,7 @@ export default function Sidebar({
 
         <div className="flex items-center gap-3">
           <button onClick={() => setShowInvitations(!showInvitations)} className="relative">
-            🔔
+           <i className="fa-regular fa-bell" style={{ color: "white" }}></i>
             {pendingInvitations.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
                 {pendingInvitations.length}
