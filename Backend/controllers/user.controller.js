@@ -4,13 +4,23 @@ import { User } from "../models/User.js";
 export const searchUsers = async (req, res) => {
   try {
     const { query } = req.query;
+
+    if (!query || !query.trim()) {
+      return res.json({ users: [] });
+    }
+
+    const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const substringRegex = new RegExp(escaped, "i"); 
+
     const users = await User.find({
       _id: { $ne: req.user._id },
       $or: [
-        { username: { $regex: query, $options: "i" } },
-        { email: { $regex: query, $options: "i" } },
+        { username: { $regex: substringRegex } },
+        { phone: { $regex: substringRegex } },
       ],
     }).select("-password");
+
     res.json({ users });
   } catch (err) {
     res.status(500).json({ message: err.message });
