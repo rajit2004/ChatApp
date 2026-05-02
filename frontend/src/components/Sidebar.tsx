@@ -6,6 +6,7 @@ import CreateGroupModal from "./CreateGroupModel";
 import ProfileModal from "./ProfileModal";
 import { toast } from "react-toastify";
 import { formatLastSeen } from "../../utils/formatLastSeen";
+import"../index.css"
 
 export default function Sidebar({
   onSelectUser,
@@ -293,7 +294,7 @@ export default function Sidebar({
 
       {/* ── Search Results / Contacts List ── */}
       {query.trim() ? (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1  scroll-container overflow-y-auto">
           {loading && (
             <p className="text-[#8696a0] text-sm px-4 py-3">Searching...</p>
           )}
@@ -323,7 +324,7 @@ export default function Sidebar({
           ))}
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 no-scrollbar overflow-y-auto">
           {contacts.length === 0 && (
             <p className="text-[#8696a0] text-sm px-4 py-6 text-center">
               No contacts yet. Search to find people.
@@ -375,7 +376,7 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* ── Bottom Profile Bar (WhatsApp style) ── */}
+     
       <div className="px-4 py-3 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between flex-shrink-0">
 
         {/* Left — avatar + name — click to open profile */}

@@ -19,5 +19,22 @@ const storage = new CloudinaryStorage({
   },
 });
 
+const chatFileStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+    const isImage = file.mimetype.startsWith("image/");
+    return {
+      folder: "chatapp/files",
+      resource_type: isImage ? "image" : "raw", // raw = non-image files
+      allowed_formats: undefined, // allow all formats
+      public_id: `${Date.now()}-${file.originalname.replace(/\s+/g, "_")}`,
+    };
+  },
+});
+
 export const upload = multer({ storage });
+export const uploadChatFile = multer({
+  storage: chatFileStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, 
+});
 export { cloudinary };

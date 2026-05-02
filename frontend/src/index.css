@@ -1,1 +1,26 @@
 @import "tailwindcss";
+@layer utilities {
+  .scroll-container::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    transition: background-color 0.3s;
+  }
+
+  .scroll-container:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.35);
+  }
+
+  /* Firefox */
+  .scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.3) transparent;
+  }
+}
