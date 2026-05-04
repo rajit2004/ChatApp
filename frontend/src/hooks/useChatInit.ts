@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { socket } from "../socket";
 import { api } from "../services/api";
+import { useNotificationSound } from "./useNotificationSound";
 
 export function useChatInit(receiver: any) {
   const [messages, setMessages] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [receiverStatus, setReceiverStatus] = useState<{ lastSeen: Date | null } | null>(null);
+  const { playNotification } = useNotificationSound();
+
+  // useRef so the receive_message listener always has the latest user value
+  // without needing to re-register the listener every time user state updates
+  const userRef = useRef<any>(null);
 
   const isGroup = receiver?.isGroup === true;
 
@@ -16,6 +22,7 @@ export function useChatInit(receiver: any) {
         const res = await api.get("/auth/me");
         const currentUser = res.data.user;
         setUser(currentUser);
+        userRef.current = currentUser; // keep ref in sync
 
         let convId: string;
 
@@ -47,6 +54,8 @@ export function useChatInit(receiver: any) {
         socket.off("receive_message");
         socket.on("receive_message", (data) => {
           setMessages((prev) => [...prev, data]);
+          if (data.senderId !== userRef.current._id) playNotification();
+          
         });
 
         socket.off("message_deleted");
