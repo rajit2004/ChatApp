@@ -7,8 +7,11 @@ export function useChatInit(receiver: any) {
   const [messages, setMessages] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [receiverStatus, setReceiverStatus] = useState<{ lastSeen: Date | null } | null>(null);
+  const [receiverStatus, setReceiverStatus] = useState<{
+    lastSeen: Date | null;
+  } | null>(null);
   const { playNotification } = useNotificationSound();
+  const convIdRef = useRef<string | null>(null);
 
   // useRef so the receive_message listener always has the latest user value
   // without needing to re-register the listener every time user state updates
@@ -29,9 +32,12 @@ export function useChatInit(receiver: any) {
         if (isGroup) {
           convId = receiver.conversationId;
           setConversationId(convId);
+          convIdRef.current = convId;
           setReceiverStatus(null);
         } else {
-          const convRes = await api.post("/conversations", { receiverId: receiver._id });
+          const convRes = await api.post("/conversations", {
+            receiverId: receiver._id,
+          });
           convId = convRes.data.conversation._id;
           setConversationId(convId);
           const statusRes = await api.get(`/users/${receiver._id}/status`);
@@ -47,9 +53,14 @@ export function useChatInit(receiver: any) {
         };
 
         if (socket.connected) joinRoom();
-        else { socket.connect(); socket.once("connect", joinRoom); }
+        else {
+          socket.connect();
+          socket.once("connect", joinRoom);
+        }
 
-        socket.on("connect", () => socket.emit("register_user", currentUser._id));
+        socket.on("connect", () =>
+          socket.emit("register_user", currentUser._id),
+        );
 
         socket.off("receive_message");
         socket.on("receive_message", (data) => {
@@ -57,8 +68,14 @@ export function useChatInit(receiver: any) {
           setMessages((prev) => [...prev, data]);
           console.log("Current user:", userRef.current);
           console.log("Message sender:", data.senderId);
-          if (data.sender._id !== userRef.current._id) playNotification();
+          const isOwnMessage = data.sender._id === userRef.current._id;
+          const isActiveConversation =
+            data.conversationId === convIdRef.current;
+          const windowUnfocused = !window.document.hasFocus();
 
+          if (!isOwnMessage && (!isActiveConversation || windowUnfocused)) {
+            playNotification();
+          }
         });
 
         socket.off("message_deleted");

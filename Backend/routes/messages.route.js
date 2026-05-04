@@ -4,6 +4,7 @@ import { Message } from "../models/Messages.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { uploadChatFile } from "../cloudinary.js";
 import { uploadFile } from "../controllers/message.controller.js";
+import { Conversation } from "../models/Conversation.js";
 
 // ── Upload file ──
 router.post("/upload", protect, uploadChatFile.single("file"), uploadFile);
@@ -27,6 +28,7 @@ router.delete("/:id", protect, async (req, res) => {
 router.delete("/clear/:conversationId", protect, async (req, res) => {
   try {
     await Message.deleteMany({ conversationId: req.params.conversationId });
+    await Conversation.findByIdAndUpdate(req.params.conversationId, { lastMessage: null });
     res.json({ success: true, message: "Chat cleared" });
   } catch (err) {
     res.status(500).json({ error: "Server error" });
