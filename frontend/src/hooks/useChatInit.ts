@@ -25,7 +25,10 @@ export function useChatInit(receiver: any) {
         const res = await api.get("/auth/me");
         const currentUser = res.data.user;
         setUser(currentUser);
-        userRef.current = currentUser; // keep ref in sync
+        userRef.current = currentUser;
+        console.log( currentUser._id);
+        console.log("Receiver ID:", receiver._id);
+        
 
         let convId: string;
 
@@ -40,6 +43,7 @@ export function useChatInit(receiver: any) {
           });
           convId = convRes.data.conversation._id;
           setConversationId(convId);
+          convIdRef.current = convId;
           const statusRes = await api.get(`/users/${receiver._id}/status`);
           setReceiverStatus(statusRes.data);
         }
@@ -67,10 +71,13 @@ export function useChatInit(receiver: any) {
           console.log("Received message:", data);
           setMessages((prev) => [...prev, data]);
           console.log("Current user:", userRef.current);
-          console.log("Message sender:", data.senderId);
+          console.log("Message sender:", data.sender._id);
           const isOwnMessage = data.sender._id === userRef.current._id;
+          console.log("Is own message?", isOwnMessage);
           const isActiveConversation =
             data.conversationId === convIdRef.current;
+            console.log("Active conversation ID:", convIdRef.current);
+            console.log("Is active conversation?", isActiveConversation);
           const windowUnfocused = !window.document.hasFocus();
 
           if (!isOwnMessage && (!isActiveConversation || windowUnfocused)) {

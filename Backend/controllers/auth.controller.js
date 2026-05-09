@@ -16,9 +16,32 @@ export const signup = async (req, res) => {
   try {
     const { username, email, password, phone } = req.body;
 
-    const existing = await User.findOne({ email });
+     if (!username || !email || !password || !phone) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
+    
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+  return res.status(400).json({
+    message: "Phone number must be exactly 10 digits",
+  });
+}
+    const phoneNum = await User.findOne({ phone: req.body.phone });
+    if (phoneNum) {
+      return res.status(400).json({ message: "User already exists with this phone number" });
+    }
+    
+   
+   
+
+    const existing = await User.findOne({ email});
     if (existing) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "User already exists with this email" });
     }
 
     const hashed = await bcrypt.hash(password, 10);
