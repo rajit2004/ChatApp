@@ -1,7 +1,7 @@
 import { User } from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import redis from "../config/redis.js"; // ✅ add this
+import redis from "../config/redis.js";
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -43,14 +43,12 @@ export const signup = async (req, res) => {
 
     const token = generateToken(user);
 
-    // ✅ Store token in Redis when signing up
-    // Key: activeSession:userId → Value: token → Expires: 7 days
-    // This registers their first session
-    await redis.set(
-      `activeSession:${user._id}`, // key — unique per user
-      token,                        // value — their current token
-      'EX', 7 * 24 * 60 * 60       // expiry — same as JWT (7 days)
-    );
+    try {
+      await redis.set(`activeSession:${user._id}`, token, { EX: 7 * 24 * 60 * 60 });
+      console.log("✅ Session stored for:", user._id.toString());
+    } catch (redisErr) {
+      console.error("❌ Redis set failed:", redisErr.message);
+    }
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -60,6 +58,7 @@ export const signup = async (req, res) => {
     }).json({ user, token, success: "Signup Successfully" });
 
   } catch (err) {
+    console.error("Signup error:", err.message);
     res.status(500).json({ message: err.message });
   }
 };
@@ -76,14 +75,12 @@ export const login = async (req, res) => {
 
     const token = generateToken(user);
 
-    // ✅ Overwrite whatever token was in Redis
-    // If user was logged in on Device A → this overwrites with Device B's token
-    // Device A's token is now invalid — it will be kicked out on next request
-    await redis.set(
-      `activeSession:${user._id}`, // same key — overwrites old session
-      token,                        // new token for new device
-      'EX', 7 * 24 * 60 * 60       // reset expiry to 7 days
-    );
+    try {
+      await redis.set(`activeSession:${user._id}`, token, { EX: 7 * 24 * 60 * 60 });
+      console.log("✅ Session stored for:", user._id.toString());
+    } catch (redisErr) {
+      console.error("❌ Redis set failed:", redisErr.message);
+    }
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -93,6 +90,7 @@ export const login = async (req, res) => {
     }).json({ user, token, success: "Login Successfully" });
 
   } catch (err) {
+    console.error("Login error:", err.message);
     res.status(500).json({ message: err.message });
   }
 };
@@ -101,9 +99,12 @@ export const logout = async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user._id, { lastSeen: new Date() });
 
-    // ✅ Delete session from Redis on logout
-    // Without this, the key stays for 7 days even after logout
-    await redis.del(`activeSession:${req.user._id}`);
+    try {
+      await redis.del(`activeSession:${req.user._id}`);
+      console.log("✅ Session deleted for:", req.user._id.toString());
+    } catch (redisErr) {
+      console.error("❌ Redis del failed:", redisErr.message);
+    }
 
     res.clearCookie("token", {
       httpOnly: true,
@@ -113,6 +114,7 @@ export const logout = async (req, res) => {
 
     res.json({ message: "Logged out" });
   } catch (err) {
+    console.error("Logout error:", err.message);
     res.status(500).json({ message: err.message });
   }
 };
