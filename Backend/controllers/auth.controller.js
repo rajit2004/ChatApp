@@ -44,7 +44,11 @@ export const signup = async (req, res) => {
     const token = generateToken(user);
 
     try {
-      await redis.set(`activeSession:${user._id}`, token, { EX: 7 * 24 * 60 * 60 });
+     await redis.setex(
+  `activeSession:${user._id}`,
+  7 * 24 * 60 * 60,
+  token
+);
       console.log("✅ Session stored for:", user._id.toString());
     } catch (redisErr) {
       console.error("❌ Redis set failed:", redisErr.message);
@@ -76,7 +80,11 @@ export const login = async (req, res) => {
     const token = generateToken(user);
 
     try {
-      await redis.set(`activeSession:${user._id}`, token, { EX: 7 * 24 * 60 * 60 });
+    await redis.setex(
+  `activeSession:${user._id}`,
+  7 * 24 * 60 * 60,
+  token
+);
       console.log("✅ Session stored for:", user._id.toString());
     } catch (redisErr) {
       console.error("❌ Redis set failed:", redisErr.message);
