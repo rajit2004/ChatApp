@@ -8,7 +8,6 @@ export default function ChatInput({
   onSend,
   onFileSelect,
   onClearFile,
-  rateLimitSeconds,
 }: {
   message: string;
   setMessage: (v: string) => void;
@@ -19,7 +18,6 @@ export default function ChatInput({
   onSend: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearFile: () => void;
-  rateLimitSeconds: number;
 }) {
   return (
     <div className="border-t border-[#2a3942] flex-shrink-0">

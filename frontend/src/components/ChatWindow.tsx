@@ -161,7 +161,6 @@ export default function ChatWindow({
         onSend={sendMessage}
         onFileSelect={handleFileSelect}
         onClearFile={clearSelectedFile}
-        rateLimitSeconds={rateLimitSeconds}
       />                               
 
     </div>
