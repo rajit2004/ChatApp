@@ -8,6 +8,9 @@ export default function ChatInput({
   onSend,
   onFileSelect,
   onClearFile,
+  rateLimitSeconds,
+  onTyping,      
+  onStopTyping,  
 }: {
   message: string;
   setMessage: (v: string) => void;
@@ -18,7 +21,12 @@ export default function ChatInput({
   onSend: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearFile: () => void;
+  rateLimitSeconds: number;   
+  onTyping: () => void;       
+  onStopTyping: () => void;   
 }) {
+  const isRateLimited = rateLimitSeconds > 0;
+
   return (
     <div className="border-t border-[#2a3942] flex-shrink-0">
 
@@ -38,10 +46,7 @@ export default function ChatInput({
               {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
             </p>
           </div>
-          <button
-            onClick={onClearFile}
-            className="text-[#8696a0] hover:text-white text-lg flex-shrink-0 transition"
-          >
+          <button onClick={onClearFile} className="text-[#8696a0] hover:text-white text-lg flex-shrink-0 transition">
             ✕
           </button>
         </div>
@@ -49,12 +54,7 @@ export default function ChatInput({
 
       {/* Input row */}
       <div className="p-2 md:p-4 flex gap-2 items-center">
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={onFileSelect}
-        />
+        <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelect} />
         <button
           onClick={() => fileInputRef.current?.click()}
           className="w-9 h-9 flex items-center justify-center rounded-full bg-[#2a3942] text-[#8696a0] hover:text-white hover:bg-[#3a4952] transition flex-shrink-0 text-lg"
@@ -63,17 +63,32 @@ export default function ChatInput({
         </button>
         <input
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && onSend()}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            if (e.target.value) onTyping();     
+            else onStopTyping();                  
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !isRateLimited) {
+              onStopTyping(); 
+              onSend();
+            }
+          }}
           className="flex-1 p-2 md:p-3 bg-[#2a3942] rounded-lg text-white outline-none placeholder-[#8696a0] text-sm"
-          placeholder={selectedFile ? "Add a caption..." : "Type a message..."}
+          placeholder={
+            isRateLimited
+              ? `Wait ${rateLimitSeconds}s...`
+              : selectedFile
+              ? "Add a caption..."
+              : "Type a message..."
+          }
         />
         <button
-          onClick={onSend}
-          disabled={uploading || (!message.trim() && !selectedFile)}
-          className="bg-[#00a884] px-3 md:px-4 py-2 rounded-lg text-white font-medium hover:bg-[#009070] transition text-sm disabled:opacity-50 flex-shrink-0"
+          onClick={() => { onStopTyping(); onSend(); }}
+          disabled={uploading || (!message.trim() && !selectedFile) || isRateLimited}
+          className="bg-[#00a884] px-3 md:px-4 py-2 rounded-lg text-white font-medium hover:bg-[#009070] transition text-sm disabled:opacity-50 flex-shrink-0 min-w-[60px] text-center"
         >
-          {uploading ? "⏳" : "Send"}
+          {uploading ? "⏳" : isRateLimited ? `${rateLimitSeconds}s` : "Send"}
         </button>
       </div>
     </div>

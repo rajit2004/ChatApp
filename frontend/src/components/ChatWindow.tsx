@@ -29,10 +29,11 @@ export default function ChatWindow({
   } | null>(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isGroup = receiver?.isGroup === true;
 
   // ── Custom hooks ──
-  const { messages, setMessages, user, conversationId, receiverStatus} =
+  const { messages, setMessages, user, conversationId, receiverStatus, rateLimitSeconds, isReceiverTyping } =
     useChatInit(receiver);
 
   const {
@@ -55,9 +56,30 @@ export default function ChatWindow({
     return () => document.removeEventListener("click", handleClick);
   });
 
+  // ✅ Emit typing with debounce — stops after 2s of no typing
+  const handleTyping = () => {
+    if (!user || !conversationId) return;
+    socket.emit("typing", { conversationId, senderId: user._id });
+
+    // Auto emit stop_typing after 2s of no keypress
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      handleStopTyping();
+    }, 2000);
+  };
+
+  // ✅ Emit stop typing
+  const handleStopTyping = () => {
+    if (!user || !conversationId) return;
+    socket.emit("stop_typing", { conversationId, senderId: user._id });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  };
+
   const sendMessage = async () => {
     if (!message.trim() && !selectedFile) return;
     if (!user || !conversationId) return;
+
+    handleStopTyping(); // ✅ stop typing when message sent
 
     try {
       const fileData = await uploadFile();
@@ -151,6 +173,18 @@ export default function ChatWindow({
         onRightClick={handleRightClick}
       />
 
+      {/* ✅ Typing indicator */}
+      {isReceiverTyping && !isGroup && (
+        <div className="px-4 py-1 flex items-center gap-2">
+          <div className="flex gap-1 items-center">
+            <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce [animation-delay:0ms]" />
+            <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce [animation-delay:150ms]" />
+            <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce [animation-delay:300ms]" />
+          </div>
+          <p className="text-xs text-[#8696a0]">{receiver.username} is typing...</p>
+        </div>
+      )}
+
       <ChatInput
         message={message}
         setMessage={setMessage}
@@ -161,8 +195,10 @@ export default function ChatWindow({
         onSend={sendMessage}
         onFileSelect={handleFileSelect}
         onClearFile={clearSelectedFile}
-      />                               
-
+        rateLimitSeconds={rateLimitSeconds}
+        onTyping={handleTyping}
+        onStopTyping={handleStopTyping}
+      />
     </div>
   );
 }

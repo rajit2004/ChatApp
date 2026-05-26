@@ -15,6 +15,8 @@ const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { playNotification } = useNotificationSound();
   const convIdRef = useRef<string | null>(null);
   const userRef = useRef<any>(null);
+  const [isReceiverTyping, setIsReceiverTyping] = useState(false);
+const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isGroup = receiver?.isGroup === true;
 
   useEffect(() => {
@@ -82,6 +84,27 @@ const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
           if (clearedId === convId) setMessages([]);
         });
 
+
+        socket.off("user_typing");
+socket.on("user_typing", ({ senderId }) => {
+  if (senderId === receiver._id) {
+    setIsReceiverTyping(true);
+    // Auto clear if stop_typing never fires
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      setIsReceiverTyping(false);
+    }, 3000);
+  }
+});
+
+socket.off("user_stop_typing");
+socket.on("user_stop_typing", ({ senderId }) => {
+  if (senderId === receiver._id) {
+    setIsReceiverTyping(false);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+  }
+});
+
         socket.off("session_kicked");
 socket.on("session_kicked", () => {
   localStorage.removeItem("token");
@@ -144,9 +167,13 @@ socket.on("rate_limited", (data: { message: string; ttl: number }) => {
       socket.off("chat_cleared");
       socket.off("rate_limited"); 
       socket.off("session_kicked");
+      socket.off("user_typing");
+socket.off("user_stop_typing");
+if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       if (rateLimitTimerRef.current) clearInterval(rateLimitTimerRef.current);
+
   };
  }, [isGroup ? receiver.conversationId : receiver._id]);
 
-  return { messages, setMessages, user, conversationId, receiverStatus, rateLimitSeconds }; 
+  return { messages, setMessages, user, conversationId, receiverStatus, rateLimitSeconds ,isReceiverTyping}; 
 }

@@ -137,6 +137,17 @@ io.on("connection", async (socket) => {
     }
   });
 
+  socket.on("typing", async ({ conversationId, senderId }) => {
+  // Store in Redis with 3s TTL — auto clears when user stops
+  await redis.setex(`typing:${conversationId}:${senderId}`, 3, '1');
+  socket.to(conversationId).emit("user_typing", { senderId });
+});
+
+socket.on("stop_typing", async ({ conversationId, senderId }) => {
+  await redis.del(`typing:${conversationId}:${senderId}`);
+  socket.to(conversationId).emit("user_stop_typing", { senderId });
+});
+
   // SEND MESSAGE
   socket.on("send_message", async (data) => {
     try {
