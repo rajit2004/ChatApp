@@ -1,6 +1,6 @@
 import { Conversation } from "../models/Conversation.js";
 import { Message } from "../models/Messages.js";
-
+import redis from "../config/redis.js";
 // GET /api/conversations/contacts
 export const getContacts = async (req, res) => {
   try {
@@ -66,9 +66,23 @@ export const getOrCreateConversation = async (req, res) => {
 // GET /api/conversations/:conversationId/messages
 export const getMessages = async (req, res) => {
   try {
-    const messages = await Message.find({
-      conversationId: req.params.conversationId,
-    }).populate("sender", "username");
+    const { conversationId } = req.params;
+    const cacheKey = `messages:${conversationId}`;
+
+    // Check Redis first
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json({ messages: JSON.parse(cached), fromCache: true });
+    }
+
+    //  Cache miss — fetch from MongoDB
+    const messages = await Message.find({ conversationId })
+      .populate("sender", "username profilePic")
+      .sort({ createdAt: 1 })
+      .limit(50); // only last 50
+
+    //  Store in Redis for 5 minutes
+    await redis.setex(cacheKey, 300, JSON.stringify(messages));
 
     res.json({ messages });
   } catch (err) {
