@@ -6,25 +6,69 @@ export default function MessageList({
   user,
   isGroup,
   onRightClick,
+  hasMore,
+  loadMoreMessages,
+  loadingMore,
 }: {
   messages: any[];
   user: any;
   isGroup: boolean;
   onRightClick: (e: React.MouseEvent, msgId: string, isMine: boolean) => void;
+  hasMore: boolean;
+  loadMoreMessages: () => void;
+  loadingMore: boolean;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeight = useRef<number>(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length === 0 || messages[messages.length - 1]?._id]);
+
+  // ✅ Maintain scroll position when older messages load
+  useEffect(() => {
+    if (containerRef.current && prevScrollHeight.current) {
+      const newScrollHeight = containerRef.current.scrollHeight;
+      containerRef.current.scrollTop = newScrollHeight - prevScrollHeight.current;
+      prevScrollHeight.current = 0;
+    }
   }, [messages]);
 
+  // ✅ Detect scroll to top
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    if (containerRef.current.scrollTop === 0 && hasMore && !loadingMore) {
+      prevScrollHeight.current = containerRef.current.scrollHeight;
+      loadMoreMessages();
+    }
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto p-3 md:p-4">
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto p-3 md:p-4"
+    >
+      {/* ✅ Load more indicator */}
+      {loadingMore && (
+        <p className="text-center text-[#8696a0] text-xs py-2">
+          Loading older messages...
+        </p>
+      )}
+
+      {!hasMore && messages.length > 0 && (
+        <p className="text-center text-[#8696a0] text-xs py-2">
+          No more messages
+        </p>
+      )}
+
       {messages.length === 0 && (
         <p className="text-center text-[#8696a0] text-sm mt-10">
           No messages yet. Say hello! 👋
         </p>
       )}
+
       {messages.map((msg, i) => {
         const senderId = msg.sender?._id || msg.sender;
         const isMine = senderId?.toString() === user?._id?.toString();

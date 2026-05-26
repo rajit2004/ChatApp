@@ -40,8 +40,8 @@ export default function ChatWindow({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isGroup = receiver?.isGroup === true;
 
-  const { messages, setMessages, user, conversationId, receiverStatus, rateLimitSeconds, isReceiverTyping } =
-    useChatInit(receiver);
+  const { messages, setMessages, user, conversationId, receiverStatus, rateLimitSeconds, isReceiverTyping, hasMore, loadMoreMessages, loadingMore } =
+  useChatInit(receiver);
 
   const {
     selectedFile,
@@ -183,12 +183,15 @@ export default function ChatWindow({
         onClose={() => setContextMenu(null)}
       />
 
-      <MessageList
-        messages={messages}
-        user={user}
-        isGroup={isGroup}
-        onRightClick={handleRightClick}
-      />
+     <MessageList
+  messages={messages}
+  user={user}
+  isGroup={isGroup}
+  onRightClick={handleRightClick}
+  hasMore={hasMore}
+  loadMoreMessages={loadMoreMessages}
+  loadingMore={loadingMore}
+/>
 
       {/* ✅ Typing indicator */}
       {isReceiverTyping && !isGroup && (
