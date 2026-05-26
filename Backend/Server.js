@@ -259,7 +259,7 @@ if (cached) {
   await redis.del(`messages:${conversationId}`);
   io.to(conversationId).emit("chat_cleared", { conversationId });
 });
-
+});
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("DB connected");
@@ -267,4 +267,4 @@ mongoose.connect(process.env.MONGO_URI)
       console.log(`Server running with socket.io on port ${PORT}`);
     });
   })
-  .catch(err => console.log(err));
+  .catch(err => console.log(err)); 
