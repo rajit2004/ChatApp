@@ -23,7 +23,7 @@ export const getContacts = async (req, res) => {
       }
 
       const other = conv.participants.find(
-        (p) => p._id.toString() !== req.user._id.toString()
+        (p) => p._id.toString() !== req.user._id.toString(),
       );
       return {
         conversationId: conv._id,
@@ -71,7 +71,6 @@ export const getMessages = async (req, res) => {
     const limit = 50;
     const skip = 0;
 
-    
     if (page === 1) {
       const cacheKey = `messages:${conversationId}`;
       const cached = await redis.get(cacheKey);
@@ -84,14 +83,18 @@ export const getMessages = async (req, res) => {
     const total = await Message.countDocuments({ conversationId });
     const messages = await Message.find({ conversationId })
       .populate("sender", "username profilePic")
-      .sort({ createdAt: -1 }) // ✅ newest first
+      .populate({
+        path: "replyTo",
+        populate: { path: "sender", select: "username" },
+      })
+      .sort({ createdAt: 1 }) //  newest first
       .skip((page - 1) * limit)
       .limit(limit)
-      .then(msgs => msgs.reverse()); // ✅ reverse to show oldest first
+      .then((msgs) => msgs.reverse()); //  reverse to show oldest first
 
     const hasMore = page * limit < total;
 
-    // ✅ Cache first page only
+    //  Cache first page only
     if (page === 1) {
       try {
         const cacheKey = `messages:${conversationId}`;
@@ -114,7 +117,9 @@ export const createGroup = async (req, res) => {
     const adminId = req.user._id;
 
     if (!name || !memberIds || memberIds.length === 0) {
-      return res.status(400).json({ message: "Group name and members are required" });
+      return res
+        .status(400)
+        .json({ message: "Group name and members are required" });
     }
 
     const participants = [adminId, ...memberIds];
@@ -128,7 +133,10 @@ export const createGroup = async (req, res) => {
       },
     });
 
-    const populated = await conversation.populate("participants", "username email");
+    const populated = await conversation.populate(
+      "participants",
+      "username email",
+    );
 
     res.json({ conversation: populated });
   } catch (err) {

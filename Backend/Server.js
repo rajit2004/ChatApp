@@ -128,11 +128,11 @@ io.on("connection", async (socket) => {
 
   socket.on("send_message", async (data) => {
     try {
-      const { conversationId, text, senderId, receiverId, fileUrl, fileName, fileType, fileSize } = data;
+      const { conversationId, text, senderId, receiverId, fileUrl, fileName, fileType, fileSize,replyTo } = data;
 
       if (!conversationId || !senderId) return;
 
-      // ✅ Session kick check
+      //  Session kick check
       const cookieHeader = socket.handshake.headers.cookie;
       const cookieToken = cookieHeader
         ?.split(';')
@@ -147,7 +147,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // ✅ Rate limit check
+      //  Rate limit check
       const { limited, ttl } = await isRateLimited(`msg:${senderId}`, 10, 10);
       if (limited) {
         socket.emit("rate_limited", {
@@ -158,22 +158,27 @@ io.on("connection", async (socket) => {
       }
 
       const message = await Message.create({
-        conversationId,
-        sender: senderId,
-        text: text || "",
-        fileUrl: fileUrl || null,
-        fileName: fileName || null,
-        fileType: fileType || null,
-        fileSize: fileSize || null,
-      });
+  conversationId,
+  sender: senderId,
+  text: text || "",
+  fileUrl: fileUrl || null,
+  fileName: fileName || null,
+  fileType: fileType || null,
+  fileSize: fileSize || null,
+  replyTo: replyTo || null,
+});
 
-      // ✅ Run populate and conversation update in parallel
-      await Promise.all([
-        message.populate("sender", "username profilePic"),
-        Conversation.findByIdAndUpdate(conversationId, { lastMessage: message._id }),
-      ]);
+//  populate sender AND replyTo
+await Promise.all([
+  message.populate("sender", "username profilePic"),
+  message.populate({
+    path: "replyTo",
+    populate: { path: "sender", select: "username" },
+  }),
+  Conversation.findByIdAndUpdate(conversationId, { lastMessage: message._id }),
+]);
 
-      // ✅ Update Redis cache
+      //  Update Redis cache
       const cacheKey = `messages:${conversationId}`;
       const cached = await redis.get(cacheKey);
       if (cached) {
@@ -182,7 +187,7 @@ io.on("connection", async (socket) => {
         await redis.setex(cacheKey, 120, JSON.stringify(messages));
       }
 
-      // ✅ Emit to sender and receiver
+      //  Emit to sender and receiver
       if (receiverId) {
         const senderSocketId = await getUserSocket(senderId);
         const receiverSocketId = await getUserSocket(receiverId);
@@ -229,7 +234,7 @@ io.on("connection", async (socket) => {
     io.to(conversationId).emit("chat_cleared", { conversationId });
   });
 
-}); // ✅ closes io.on("connection")
+}); //  closes io.on("connection")
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
