@@ -65,8 +65,8 @@ export default function ChatInput({
             searchDisabled={false}
             skinTonesDisabled
             previewConfig={{ showPreview: false }}
-            style={{ 
-              overflow:"hidden",
+            style={{
+              overflow: "hidden",
               scrollbarColor: "transparent transparent",
               scrollbarWidth: "none",
               border: "1px solid #2a3942",
@@ -119,28 +119,35 @@ export default function ChatInput({
 
         {/* ✅ Input box with emoji button inside */}
         <div className="flex-1 flex items-center bg-[#2a3942] rounded-lg px-3 gap-2">
-          <input
+          <textarea
             value={message}
             onChange={(e) => {
               setMessage(e.target.value);
               if (e.target.value) onTyping();
               else onStopTyping();
+
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !isRateLimited) {
+                e.preventDefault();
                 onStopTyping();
                 setShowEmojiPicker(false);
                 onSend();
               }
+
             }}
-            className="flex-1 py-2 md:py-3 bg-transparent text-white outline-none placeholder-[#8696a0] text-sm"
+            rows={1}
+            className="flex-1 py-2 md:py-3 bg-transparent text-white outline-none placeholder-[#8696a0] text-sm resize-none overflow-hidden"
             placeholder={
               isRateLimited
                 ? `Wait ${rateLimitSeconds}s...`
                 : selectedFile
-                ? "Add a caption..."
-                : "Type a message..."
+                  ? "Add a caption..."
+                  : "Type a message..."
             }
+            style={{ maxHeight: "120px" }}
           />
 
           {/* Emoji button inside input */}

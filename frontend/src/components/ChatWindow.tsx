@@ -93,7 +93,7 @@ export default function ChatWindow({
         fileName: fileData?.fileName || null,
         fileType: fileData?.fileType || null,
         createdAt: new Date().toISOString(),
-        // ✅ include reply in optimistic update
+        //  include reply in optimistic update
         replyTo: replyTo ? {
           _id: replyTo._id,
           text: replyTo.text,
@@ -105,17 +105,22 @@ export default function ChatWindow({
       setMessages((prev) => [...prev, tempMessage]);
       setMessage("");
       clearSelectedFile();
+      
+       const textarea = document.querySelector("textarea");
+       if (textarea) {
+         textarea.style.height = "auto";
+        }
 
       socket.emit("send_message", {
         conversationId,
         text: message,
         senderId: user._id,
         receiverId: isGroup ? null : receiver._id,
-        replyTo: replyTo?._id || null, // ✅ send reply id to server
+        replyTo: replyTo?._id || null, //  send reply id to server
         ...fileData,
       });
 
-      setReplyTo(null); // ✅ clear reply after sending
+      setReplyTo(null); //  clear reply after sending
 
     } catch {
       toast.error("Failed to send file");
