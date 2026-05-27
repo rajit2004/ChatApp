@@ -81,17 +81,16 @@ export const getMessages = async (req, res) => {
     }
 
     const total = await Message.countDocuments({ conversationId });
-    const messages = await Message.find({ conversationId })
-      .populate("sender", "username profilePic")
-      .populate({
-        path: "replyTo",
-        populate: { path: "sender", select: "username" },
-      })
-      .sort({ createdAt: 1 }) //  newest first
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .then((msgs) => msgs.reverse()); //  reverse to show oldest first
-
+   const messages = await Message.find({ conversationId })
+  .populate("sender", "username profilePic")
+  .populate({
+    path: "replyTo",
+    populate: { path: "sender", select: "username" },
+  })
+  .sort({ createdAt: -1 }) 
+  .skip((page - 1) * limit)
+  .limit(limit)
+  .then((msgs) => msgs.reverse()); 
     const hasMore = page * limit < total;
 
     //  Cache first page only
