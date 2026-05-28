@@ -39,10 +39,14 @@ const registerUser = async () => {
     await registerPushNotifications(api);
     console.log("Push registration done"); // ✅ add this
 
-  } catch (err: any) {
-    if (err.response?.status !== 401) {
-      console.log("Failed to register user:", err);
+  }  catch (err: any) {
+    if (err.response?.status === 401) {
+      //  Token expired or invalid — clear and redirect
+      localStorage.removeItem("token");
+      window.location.href = "/";
+      return;
     }
+    console.log("Failed to register user:", err);
   }
 };
 

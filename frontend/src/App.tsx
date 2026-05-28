@@ -4,7 +4,6 @@ import Signup from "./pages/Signup";
 import ChatLayout from "./pages/ChatLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-
 function PublicRoute({ children }: { children: any }) {
   const token = localStorage.getItem("token");
   if (token) return <Navigate to="/chat" />;
@@ -30,6 +29,7 @@ export default function App() {
             <ChatLayout />
           </ProtectedRoute>
         } />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );

@@ -21,20 +21,19 @@ api.interceptors.response.use(
       const data = error.response.data;
 
       if (data.kicked) {
-        // ✅ Clear everything local
         localStorage.removeItem("token");
-
         toast.error("You were logged in from another device.", {
           position: "top-center",
           theme: "dark",
           autoClose: 3000,
         });
-
-        // ✅ Small delay so toast is visible before redirect
-        setTimeout(() => {
-          window.location.href = "/"; // hard redirect — clears all React state
-        }, 3000);
+        setTimeout(() => { window.location.href = "/"; }, 3000);
+        return Promise.reject(error);
       }
+
+      //  Handle expired/invalid token
+      localStorage.removeItem("token");
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }
