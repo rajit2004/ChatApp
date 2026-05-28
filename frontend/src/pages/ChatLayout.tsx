@@ -3,6 +3,7 @@ import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import { socket } from "../socket";
 import { api } from "../services/api";
+import { registerPushNotifications } from "../utils/pushNotification";
 
 export default function ChatLayout() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -12,7 +13,7 @@ export default function ChatLayout() {
   const [mobileView, setMobileView] = useState<"sidebar" | "chat">("sidebar");
 
   useEffect(() => {
- const registerUser = async () => {
+const registerUser = async () => {
   try {
     const res = await api.get("/auth/me");
     const currentUser = res.data.user;
@@ -22,21 +23,21 @@ export default function ChatLayout() {
 
     const register = async () => {
       socket.emit("register_user", currentUser._id);
-      
-      // ✅ Fetch AFTER registering — so current user is in Redis
-      await new Promise(resolve => setTimeout(resolve, 500)); // small delay for Redis to update
+      await new Promise(resolve => setTimeout(resolve, 500));
       const onlineRes = await api.get("/users/online");
       const onlineUserIds: string[] = onlineRes.data.onlineUserIds;
       const initialStatuses: Record<string, Date | null> = {};
-      onlineUserIds.forEach(id => {
-        initialStatuses[id] = null;
-      });
+      onlineUserIds.forEach(id => { initialStatuses[id] = null; });
       setUserStatuses(initialStatuses);
     };
 
     if (socket.connected) register();
     else socket.once("connect", register);
     socket.on("connect", register);
+
+    console.log("Registering push notifications..."); // ✅ add this
+    await registerPushNotifications(api);
+    console.log("Push registration done"); // ✅ add this
 
   } catch (err: any) {
     if (err.response?.status !== 401) {
