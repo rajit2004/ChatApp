@@ -15,6 +15,8 @@ import invitationRoutes from "./routes/invitation.routes.js";
 import messageRoutes from "./routes/messages.route.js";
 import { isRateLimited } from "./middleware/rateLimiter.js";
 import redis from "./config/redis.js";
+import pushRoutes from "./routes/push.routes.js";
+import { sendPushToUser } from "./utils/sendPushNotification.js";
 
 dotenv.config();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +39,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/push", pushRoutes);
 
 const server = http.createServer(app);
 
@@ -67,19 +70,16 @@ async function getUserIdBySocket(socketId) {
 }
 
 io.on("connection", async (socket) => {
-  console.log("User connected:", socket.id);
 
   socket.on("register_user", async (userId) => {
     await setUserOnline(userId, socket.id);
-    console.log("Registered:", userId, "->", socket.id);
     await User.findByIdAndUpdate(userId, { lastSeen: null });
     io.emit("user_status_change", { userId, lastSeen: null });
   });
 
   socket.on("join_conversation", (conversationId) => {
-    if (!conversationId) return console.log("No conversationId provided");
+    if (!conversationId) return;
     socket.join(conversationId);
-    console.log(`User ${socket.id} joined room: ${conversationId}`);
   });
 
   socket.on("group_created", async (data) => {
@@ -92,11 +92,24 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // SEND INVITATION
   socket.on("send_invitation", async (data) => {
     const { receiverId, invitation } = data;
     const receiverSocketId = await getUserSocket(receiverId);
+
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("receive_invitation", invitation);
+    } else {
+      try {
+        const sender = await User.findById(invitation.sender).select("username");
+        await sendPushToUser(receiverId, {
+          title: "New Invitation",
+          body: `${sender?.username || "Someone"} wants to connect with you`,
+          url: "/",
+        });
+      } catch (err) {
+        console.error("Push failed for invitation:", err.message);
+      }
     }
   });
 
@@ -128,11 +141,10 @@ io.on("connection", async (socket) => {
 
   socket.on("send_message", async (data) => {
     try {
-      const { conversationId, text, senderId, receiverId, fileUrl, fileName, fileType, fileSize,replyTo } = data;
+      const { conversationId, text, senderId, receiverId, fileUrl, fileName, fileType, fileSize, replyTo } = data;
 
       if (!conversationId || !senderId) return;
 
-      //  Session kick check
       const cookieHeader = socket.handshake.headers.cookie;
       const cookieToken = cookieHeader
         ?.split(';')
@@ -147,7 +159,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      //  Rate limit check
       const { limited, ttl } = await isRateLimited(`msg:${senderId}`, 10, 10);
       if (limited) {
         socket.emit("rate_limited", {
@@ -158,27 +169,25 @@ io.on("connection", async (socket) => {
       }
 
       const message = await Message.create({
-  conversationId,
-  sender: senderId,
-  text: text || "",
-  fileUrl: fileUrl || null,
-  fileName: fileName || null,
-  fileType: fileType || null,
-  fileSize: fileSize || null,
-  replyTo: replyTo || null,
-});
+        conversationId,
+        sender: senderId,
+        text: text || "",
+        fileUrl: fileUrl || null,
+        fileName: fileName || null,
+        fileType: fileType || null,
+        fileSize: fileSize || null,
+        replyTo: replyTo || null,
+      });
 
-//  populate sender AND replyTo
-await Promise.all([
-  message.populate("sender", "username profilePic"),
-  message.populate({
-    path: "replyTo",
-    populate: { path: "sender", select: "username" },
-  }),
-  Conversation.findByIdAndUpdate(conversationId, { lastMessage: message._id }),
-]);
+      await Promise.all([
+        message.populate("sender", "username profilePic"),
+        message.populate({
+          path: "replyTo",
+          populate: { path: "sender", select: "username" },
+        }),
+        Conversation.findByIdAndUpdate(conversationId, { lastMessage: message._id }),
+      ]);
 
-      //  Update Redis cache
       const cacheKey = `messages:${conversationId}`;
       const cached = await redis.get(cacheKey);
       if (cached) {
@@ -187,14 +196,53 @@ await Promise.all([
         await redis.setex(cacheKey, 120, JSON.stringify(messages));
       }
 
-      //  Emit to sender and receiver
       if (receiverId) {
         const senderSocketId = await getUserSocket(senderId);
         const receiverSocketId = await getUserSocket(receiverId);
         if (senderSocketId) io.to(senderSocketId).emit("receive_message", message);
-        if (receiverSocketId) io.to(receiverSocketId).emit("receive_message", message);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("receive_message", message);
+        } else {
+          try {
+            const sender = await User.findById(senderId).select("username");
+            await sendPushToUser(receiverId, {
+              title: sender?.username || "New Message",
+              body: text || "📎 Sent a file",
+              url: "/",
+            });
+          } catch (err) {
+            console.error("Push failed for message:", err.message);
+          }
+        }
       } else {
         io.to(conversationId).emit("receive_message", message);
+
+        try {
+          const conversation = await Conversation.findById(conversationId)
+            .select("participants");
+          const sender = await User.findById(senderId).select("username");
+
+          const offlineMembers = await Promise.all(
+            conversation.participants
+              .filter(p => p.toString() !== senderId)
+              .map(async (memberId) => {
+                const socketId = await getUserSocket(memberId.toString());
+                return socketId ? null : memberId;
+              })
+          );
+
+          const pushPromises = offlineMembers
+            .filter(Boolean)
+            .map(memberId => sendPushToUser(memberId, {
+              title: sender?.username || "New Message",
+              body: text || "📎 Sent a file",
+              url: "/",
+            }));
+
+          await Promise.all(pushPromises);
+        } catch (err) {
+          console.error("Group push failed:", err.message);
+        }
       }
 
       io.to(conversationId).emit("last_message_update", {
@@ -220,8 +268,6 @@ await Promise.all([
       await User.findByIdAndUpdate(userId, { lastSeen: now });
       io.emit("user_status_change", { userId, lastSeen: now });
     }
-
-    console.log("User disconnected:", socket.id);
   });
 
   socket.on("delete_message", async ({ messageId, conversationId }) => {
@@ -234,7 +280,7 @@ await Promise.all([
     io.to(conversationId).emit("chat_cleared", { conversationId });
   });
 
-}); //  closes io.on("connection")
+});
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
@@ -243,4 +289,4 @@ mongoose.connect(process.env.MONGO_URI)
       console.log(`Server running with socket.io on port ${PORT}`);
     });
   })
-  .catch(err => console.log(err));
+  .catch(err => console.error("DB connection error:", err));

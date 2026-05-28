@@ -6,6 +6,7 @@ import CreateGroupModal from "./CreateGroupModel";
 import ProfileModal from "./ProfileModal";
 import { toast } from "react-toastify";
 import { formatLastSeen } from "../../utils/formatLastSeen";
+import { unregisterPushNotifications } from "../utils/pushNotification";
 import "../index.css";
 
 function formatMessageTime(dateStr: string | null | undefined): string {
@@ -204,16 +205,16 @@ export default function Sidebar({
   };
 
   const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-      localStorage.removeItem("token");
-      socket.disconnect();
-      window.location.href = "/";
-      toast.success("Logged out successfully");
-    } catch (err) {
-      console.log("Logout failed:", err);
-    }
-  };
+  try {
+    await unregisterPushNotifications(api);
+    await api.post("/auth/logout");
+    localStorage.removeItem("token");
+    socket.disconnect();
+    window.location.href = "/";
+  } catch (err) {
+    console.log("Logout failed:", err);
+  }
+};
 
   const handleCreateGroup = async (name: string, members: any[]) => {
     try {

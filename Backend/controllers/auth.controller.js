@@ -44,14 +44,9 @@ export const signup = async (req, res) => {
     const token = generateToken(user);
 
     try {
-     await redis.setex(
-  `activeSession:${user._id}`,
-  7 * 24 * 60 * 60,
-  token
-);
-      console.log("✅ Session stored for:", user._id.toString());
+      await redis.setex(`activeSession:${user._id}`, 7 * 24 * 60 * 60, token);
     } catch (redisErr) {
-      console.error("❌ Redis set failed:", redisErr.message);
+      console.error("Redis set failed:", redisErr.message);
     }
 
     res.cookie("token", token, {
@@ -80,14 +75,9 @@ export const login = async (req, res) => {
     const token = generateToken(user);
 
     try {
-    await redis.setex(
-  `activeSession:${user._id}`,
-  7 * 24 * 60 * 60,
-  token
-);
-      console.log("✅ Session stored for:", user._id.toString());
+      await redis.setex(`activeSession:${user._id}`, 7 * 24 * 60 * 60, token);
     } catch (redisErr) {
-      console.error("❌ Redis set failed:", redisErr.message);
+      console.error("Redis set failed:", redisErr.message);
     }
 
     res.cookie("token", token, {
@@ -109,9 +99,8 @@ export const logout = async (req, res) => {
 
     try {
       await redis.del(`activeSession:${req.user._id}`);
-      console.log("✅ Session deleted for:", req.user._id.toString());
     } catch (redisErr) {
-      console.error("❌ Redis del failed:", redisErr.message);
+      console.error("Redis del failed:", redisErr.message);
     }
 
     res.clearCookie("token", {
