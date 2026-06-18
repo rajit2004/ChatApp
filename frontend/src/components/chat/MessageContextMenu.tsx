@@ -1,3 +1,5 @@
+import { ReplyIcon, CopyIcon, TrashIcon } from "../ui/Icons";
+
 export default function MessageContextMenu({
   contextMenu,
   messages,
@@ -17,44 +19,44 @@ export default function MessageContextMenu({
 
   const msg = messages.find((m) => m._id === contextMenu.msgId);
 
+  const menuItemClass =
+    "w-full text-left px-3.5 py-2 text-sm hover:bg-elevated transition-colors flex items-center gap-2.5";
+
   return (
     <div
-      className="absolute z-50 bg-[#233138] rounded-lg shadow-xl overflow-hidden"
-      style={{
-        top: contextMenu.y,
-        left: contextMenu.x,
-        width: "150px",
-        border: "1px solid #2a3942",
-      }}
+      className="absolute z-50 bg-menu border border-border rounded-lg shadow-xl overflow-hidden w-36"
+      style={{ top: contextMenu.y, left: contextMenu.x }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* ✅ Reply option */}
       <button
-        className="w-full text-left px-4 py-2 text-sm text-white hover:bg-[#2a3942] flex items-center gap-2"
+        className={menuItemClass}
         onClick={() => {
           if (msg) onReply(msg);
           onClose();
         }}
       >
-        ↩ Reply
+        <ReplyIcon />
+        Reply
       </button>
 
       <button
-        className="w-full text-left px-4 py-2 text-sm text-white hover:bg-[#2a3942] flex items-center gap-2"
+        className={menuItemClass}
         onClick={() => {
           if (msg?.text) onCopy(msg.text);
           onClose();
         }}
       >
-         Copy
+        <CopyIcon />
+        Copy
       </button>
 
       {contextMenu.isMine && (
         <button
-          className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#2a3942] flex items-center gap-2"
+          className={`${menuItemClass} text-danger`}
           onClick={() => onDelete(contextMenu.msgId)}
         >
-           Delete
+          <TrashIcon />
+          Delete
         </button>
       )}
     </div>

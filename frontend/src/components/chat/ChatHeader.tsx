@@ -1,4 +1,8 @@
 import { formatLastSeen } from "../../../utils/formatLastSeen";
+import Avatar from "../ui/Avatar";
+import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
+import { ArrowLeftIcon, DotsVerticalIcon, XIcon } from "../ui/Icons";
 
 export default function ChatHeader({
   receiver,
@@ -16,94 +20,94 @@ export default function ChatHeader({
   setHeaderMenu: (v: boolean) => void;
 }) {
   const isGroup = receiver?.isGroup === true;
+  const displayName = isGroup ? receiver.groupName : receiver.username;
 
   return (
     <>
-      <div
-        className="p-3 md:p-4 border-b border-[#2a3942] flex items-center justify-between flex-shrink-0"
-        onContextMenu={(e) => { e.preventDefault(); setHeaderMenu(true); }}
-      >
-        {/* Left */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <button
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-shrink-0 bg-surface">
+        <div className="flex items-center gap-3 min-w-0">
+          <IconButton
+            label="Back"
             onClick={onClose}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#2a3942] transition text-white flex-shrink-0"
+            className="md:hidden"
           >
-            ←
-          </button>
-          <div className="relative flex-shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#00a884] flex items-center justify-center font-bold uppercase overflow-hidden">
-              {isGroup ? (
-                receiver.groupName[0]
-              ) : receiver.profilePic ? (
-                <img src={receiver.profilePic} className="w-full h-full object-cover" />
-              ) : (
-                receiver.username[0]
-              )}
-            </div>
-            {!isGroup && receiverStatus?.lastSeen === null && (
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-400 rounded-full border-2 border-[#111b21]" />
-            )}
-          </div>
+            <ArrowLeftIcon className="w-5 h-5" />
+          </IconButton>
+
+          <Avatar
+            src={isGroup ? null : receiver.profilePic}
+            name={displayName}
+            size="md"
+            online={!isGroup && receiverStatus?.lastSeen === null}
+          />
+
           <div className="min-w-0">
-            <p className="font-medium text-sm md:text-base truncate">
-              {isGroup ? receiver.groupName : receiver.username}
-            </p>
-            <p className="text-xs text-[#8696a0] truncate">
+            <p className="font-medium text-sm truncate text-text">{displayName}</p>
+            <p className="text-xs text-muted truncate">
               {isGroup
                 ? `${receiver.participants?.length} members`
                 : receiverStatus?.lastSeen === null
-                ? "online"
-                : receiverStatus?.lastSeen
-                ? formatLastSeen(receiverStatus.lastSeen)
-                : "offline"}
+                  ? <span className="text-online">Online</span>
+                  : receiverStatus?.lastSeen
+                    ? formatLastSeen(receiverStatus.lastSeen)
+                    : "Offline"}
             </p>
           </div>
         </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-          <button
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onClearClick}
-            className="hidden sm:block text-xs px-2 md:px-3 py-1 rounded-md bg-[#2a3942] text-[#8696a0] hover:bg-red-600 hover:text-white transition-colors"
+            className="hidden sm:inline-flex"
           >
-            Clear
-          </button>
-          <button
+            Clear chat
+          </Button>
+          <IconButton
+            label="Close chat"
             onClick={onClose}
-            className="hidden md:flex w-7 h-7 items-center justify-center rounded-md bg-[#2a3942] text-[#8696a0] hover:bg-[#3a4952] hover:text-white transition-colors text-sm"
+            className="hidden md:flex"
           >
-            ✕
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setHeaderMenu(!headerMenu); }}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#2a3942] transition text-[#8696a0]"
+            <XIcon className="w-4 h-4" />
+          </IconButton>
+          <IconButton
+            label="Menu"
+            onClick={(e) => {
+              e.stopPropagation();
+              setHeaderMenu(!headerMenu);
+            }}
+            className="md:hidden"
           >
-            ⋮
-          </button>
+            <DotsVerticalIcon className="w-5 h-5" />
+          </IconButton>
         </div>
       </div>
 
-      {/* Header dropdown menu */}
       {headerMenu && (
         <>
           <div className="absolute inset-0 z-40" onClick={() => setHeaderMenu(false)} />
           <div
-            className="absolute top-14 right-4 z-50 bg-[#233138] rounded-lg shadow-xl overflow-hidden"
-            style={{ width: "160px", border: "1px solid #2a3942" }}
+            className="absolute top-14 right-4 z-50 bg-menu border border-border rounded-lg shadow-xl overflow-hidden w-40"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-[#2a3942] flex items-center gap-2"
-              onClick={() => { onClearClick(); setHeaderMenu(false); }}
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-elevated transition-colors"
+              onClick={() => {
+                onClearClick();
+                setHeaderMenu(false);
+              }}
             >
-               Clear Chat
+              Clear chat
             </button>
             <button
-              className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-[#2a3942] flex items-center gap-2"
-              onClick={() => { onClose(); setHeaderMenu(false); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-danger hover:bg-elevated transition-colors"
+              onClick={() => {
+                onClose();
+                setHeaderMenu(false);
+              }}
             >
-               Close Chat
+              Close chat
             </button>
           </div>
         </>

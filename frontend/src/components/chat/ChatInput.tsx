@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
+import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
+import Spinner from "../ui/Spinner";
+import { PaperclipIcon, SmileIcon, XIcon } from "../ui/Icons";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function ChatInput({
   message,
@@ -31,6 +36,7 @@ export default function ChatInput({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const isRateLimited = rateLimitSeconds > 0;
+  const { theme } = useTheme();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -47,61 +53,57 @@ export default function ChatInput({
     onTyping();
   };
 
-  return (
-    <div className="border-t border-[#2a3942] flex-shrink-0 relative">
+  const handleSend = () => {
+    onStopTyping();
+    setShowEmojiPicker(false);
+    onSend();
+  };
 
-      {/* Emoji Picker */}
+  return (
+    <div className="border-t border-border flex-shrink-0 relative bg-surface">
       {showEmojiPicker && (
         <div
           ref={emojiPickerRef}
-          className="absolute bottom-16 left-2 z-50"
-          style={{ overflow: "hidden", borderRadius: "12px" }}
+          className="absolute bottom-full left-2 mb-2 z-50 rounded-xl overflow-hidden border border-border shadow-2xl"
         >
           <EmojiPicker
-            theme={Theme.DARK}
+            theme={theme === "dark" ? Theme.DARK : Theme.LIGHT}
             onEmojiClick={handleEmojiClick}
-            width={580}
-            height={320}
+            width={320}
+            height={360}
             searchDisabled={false}
             skinTonesDisabled
             previewConfig={{ showPreview: false }}
-            style={{
-              overflow: "hidden",
-              scrollbarColor: "transparent transparent",
-              scrollbarWidth: "none",
-              border: "1px solid #2a3942",
-            }}
           />
         </div>
       )}
 
-      {/* File preview bar */}
       {selectedFile && (
-        <div className="px-4 py-2 bg-[#202c33] flex items-center gap-3 border-b border-[#2a3942]">
+        <div className="px-4 py-2.5 bg-elevated flex items-center gap-3 border-b border-border">
           {filePreview ? (
-            <img src={filePreview} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+            <img
+              src={filePreview}
+              className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+              alt="Preview"
+            />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-[#2a3942] flex items-center justify-center text-2xl flex-shrink-0">
-              📎
+            <div className="w-11 h-11 rounded-lg bg-input flex items-center justify-center flex-shrink-0">
+              <PaperclipIcon className="w-5 h-5 text-muted" />
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm truncate">{selectedFile.name}</p>
-            <p className="text-[#8696a0] text-xs">
+            <p className="text-sm truncate">{selectedFile.name}</p>
+            <p className="text-muted text-xs">
               {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
             </p>
           </div>
-          <button
-            onClick={onClearFile}
-            className="text-[#8696a0] hover:text-white text-lg flex-shrink-0 transition"
-          >
-            ✕
-          </button>
+          <IconButton label="Remove file" onClick={onClearFile}>
+            <XIcon className="w-4 h-4" />
+          </IconButton>
         </div>
       )}
 
-      {/* Input row */}
-      <div className="p-2 md:p-4 flex gap-2 items-center">
+      <div className="p-3 flex gap-2 items-end">
         <input
           ref={fileInputRef}
           type="file"
@@ -109,16 +111,15 @@ export default function ChatInput({
           onChange={onFileSelect}
         />
 
-        {/* File button */}
-        <button
+        <IconButton
+          label="Attach file"
           onClick={() => fileInputRef.current?.click()}
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-[#2a3942] text-[#8696a0] hover:text-white hover:bg-[#3a4952] transition flex-shrink-0 text-lg"
+          className="flex-shrink-0"
         >
-          <i className="fa-regular fa-file"></i>
-        </button>
+          <PaperclipIcon className="w-5 h-5" />
+        </IconButton>
 
-        {/* ✅ Input box with emoji button inside */}
-        <div className="flex-1 flex items-center bg-[#2a3942] rounded-lg px-3 gap-2">
+        <div className="flex-1 flex items-end bg-input rounded-lg px-3 gap-2 border border-border focus-within:border-accent/50 transition-colors">
           <textarea
             value={message}
             onChange={(e) => {
@@ -132,14 +133,11 @@ export default function ChatInput({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !isRateLimited) {
                 e.preventDefault();
-                onStopTyping();
-                setShowEmojiPicker(false);
-                onSend();
+                handleSend();
               }
-
             }}
             rows={1}
-            className="flex-1 py-2 md:py-3 bg-transparent text-white outline-none placeholder-[#8696a0] text-sm resize-none overflow-hidden"
+            className="flex-1 py-2.5 bg-transparent text-sm outline-none placeholder:text-muted resize-none overflow-hidden"
             placeholder={
               isRateLimited
                 ? `Wait ${rateLimitSeconds}s...`
@@ -150,30 +148,32 @@ export default function ChatInput({
             style={{ maxHeight: "120px" }}
           />
 
-          {/* Emoji button inside input */}
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setShowEmojiPicker(!showEmojiPicker);
             }}
-            className="text-[#8696a0] hover:text-white transition text-lg flex-shrink-0"
+            className="text-muted hover:text-text transition-colors flex-shrink-0 pb-2.5"
+            aria-label="Emoji picker"
           >
-            <i className="fa-regular fa-face-smile-beam"></i>
+            <SmileIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Send button */}
-        <button
-          onClick={() => {
-            onStopTyping();
-            setShowEmojiPicker(false);
-            onSend();
-          }}
+        <Button
+          onClick={handleSend}
           disabled={uploading || (!message.trim() && !selectedFile) || isRateLimited}
-          className="bg-[#00a884] px-3 md:px-4 py-2 rounded-lg text-white font-medium hover:bg-[#009070] transition text-sm disabled:opacity-50 flex-shrink-0 min-w-[60px] text-center"
+          className="flex-shrink-0 min-w-[72px] flex items-center justify-center"
         >
-          {uploading ? "⏳" : isRateLimited ? `${rateLimitSeconds}s` : "Send"}
-        </button>
+          {uploading ? (
+            <Spinner className="w-4 h-4" />
+          ) : isRateLimited ? (
+            `${rateLimitSeconds}s`
+          ) : (
+            "Send"
+          )}
+        </Button>
       </div>
     </div>
   );

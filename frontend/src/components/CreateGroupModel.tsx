@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
+import Modal from "./ui/Modal";
+import Button from "./ui/Button";
+import Input from "./ui/Input";
+import Avatar from "./ui/Avatar";
 
 export default function CreateGroupModal({
   contacts,
@@ -14,7 +18,6 @@ export default function CreateGroupModal({
   const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Only show contacts when searching
   const filteredContacts = searchQuery.trim()
     ? contacts
         .filter((c) => !c.isGroup)
@@ -44,131 +47,89 @@ export default function CreateGroupModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-end sm:items-center justify-center z-50 px-0 sm:px-4">
-      <div className="bg-[#202c33] rounded-t-2xl sm:rounded-xl p-5 sm:p-6 w-full sm:w-96 sm:max-w-sm flex flex-col gap-4 max-h-[85vh]">
-
-        {/* Header */}
-        <div className="flex items-center justify-between flex-shrink-0">
-          <p className="font-semibold text-lg text-white">Create Group</p>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-[#2a3942] text-[#8696a0] hover:text-white transition"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Group Name */}
-        <input
+    <Modal title="Create group" onClose={onClose} className="max-h-[85vh] flex flex-col">
+      <div className="flex flex-col gap-4 min-h-0">
+        <Input
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
-          placeholder="Group name..."
-          className="px-4 py-3 rounded-lg bg-[#2a3942] text-white text-sm outline-none placeholder-[#8696a0] flex-shrink-0"
+          placeholder="Group name"
         />
 
-        {/* Search contacts */}
-        <input
+        <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search your contacts..."
-          className="px-4 py-3 rounded-lg bg-[#2a3942] text-white text-sm outline-none placeholder-[#8696a0] flex-shrink-0"
+          placeholder="Search contacts to add..."
         />
 
-        {/* Selected member chips */}
         {selectedMembers.length > 0 && (
-          <div className="flex flex-wrap gap-2 flex-shrink-0">
+          <div className="flex flex-wrap gap-2">
             {selectedMembers.map((m) => (
-              <span
+              <button
                 key={m._id}
+                type="button"
                 onClick={() => toggleMember(m)}
-                className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#00a884] text-white text-xs cursor-pointer hover:bg-[#009070] transition"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/15 text-accent text-xs hover:bg-accent/25 transition-colors"
               >
-                {m.username} ✕
-              </span>
+                {m.username}
+                <span className="text-accent/60">×</span>
+              </button>
             ))}
           </div>
         )}
 
-        {/* Selected count */}
-        <p className="text-xs text-[#8696a0] flex-shrink-0">
-          {selectedMembers.length} member(s) selected
+        <p className="text-xs text-muted">
+          {selectedMembers.length} member{selectedMembers.length !== 1 ? "s" : ""} selected
         </p>
 
-        {/* Contacts list */}
-        <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
-
-          {/* No search yet — show hint */}
+        <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 min-h-0 max-h-48">
           {!searchQuery.trim() && (
-            <div className="flex flex-col items-center justify-center py-6 gap-2">
-              
-              <p className="text-[#8696a0] text-xs text-center">
-                Search your contacts above to add members
-              </p>
-            </div>
+            <p className="text-muted text-xs text-center py-6">
+              Search your contacts above to add members
+            </p>
           )}
 
-          {/* Searched but no match */}
           {searchQuery.trim() && filteredContacts.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-6 gap-2">
-              <p className="text-[#8696a0] text-xs text-center">
-                No contacts match "{searchQuery}"
-              </p>
-            </div>
+            <p className="text-muted text-xs text-center py-6">
+              No contacts match &ldquo;{searchQuery}&rdquo;
+            </p>
           )}
 
-          {/* Results */}
           {filteredContacts.map((contact) => (
-            <div
+            <button
               key={contact.conversationId}
+              type="button"
               onClick={() => toggleMember(contact.user)}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors w-full text-left ${
                 isSelected(contact.user._id)
-                  ? "bg-[#00a884]"
-                  : "bg-[#2a3942] hover:bg-[#3a4952]"
+                  ? "bg-accent/15 ring-1 ring-accent/30"
+                  : "bg-input hover:bg-elevated"
               }`}
             >
-              {/* Avatar */}
-              <div className="w-9 h-9 rounded-full bg-[#111b21] flex items-center justify-center font-bold uppercase text-sm text-white flex-shrink-0 overflow-hidden">
-                {contact.user?.profilePic ? (
-                  <img
-                    src={contact.user.profilePic}
-                    className="w-full h-full object-cover"
-                    alt={contact.user.username}
-                  />
-                ) : (
-                  contact.user?.username?.[0]
-                )}
-              </div>
-
+              <Avatar
+                src={contact.user?.profilePic}
+                name={contact.user?.username || "?"}
+                size="sm"
+              />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{contact.user?.username}</p>
-                <p className="text-xs text-[#8696a0] truncate">{contact.user?.email}</p>
+                <p className="text-sm truncate">{contact.user?.username}</p>
+                <p className="text-xs text-muted truncate">{contact.user?.email}</p>
               </div>
-
               {isSelected(contact.user._id) && (
-                <span className="text-white text-sm flex-shrink-0">✓</span>
+                <span className="text-accent text-sm">✓</span>
               )}
-            </div>
+            </button>
           ))}
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-2 flex-shrink-0 pt-1">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 rounded-lg bg-[#2a3942] text-sm text-white hover:bg-[#3a4952] transition"
-          >
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" onClick={onClose} fullWidth>
             Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="flex-1 py-3 rounded-lg bg-[#00a884] text-sm text-white hover:bg-[#009070] transition font-medium"
-          >
+          </Button>
+          <Button onClick={handleSubmit} fullWidth>
             Create
-          </button>
+          </Button>
         </div>
-
       </div>
-    </div>
+    </Modal>
   );
 }

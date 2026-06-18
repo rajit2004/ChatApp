@@ -4,6 +4,7 @@ import ChatWindow from "../components/ChatWindow";
 import { socket } from "../socket";
 import { api } from "../services/api";
 import { registerPushNotifications } from "../utils/pushNotification";
+import { MessageIcon } from "../components/ui/Icons";
 
 export default function ChatLayout() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -73,19 +74,12 @@ const registerUser = async () => {
   };
 
   return (
-    <div className="h-screen flex bg-[#111b21] text-white overflow-hidden">
+    <div className="h-screen flex bg-app text-text overflow-hidden">
 
       <div
         className={`
-          flex-shrink-0 border-r border-[#2a3942]
-          
-          /* mobile — full width, toggle visibility */
-          w-full
-          md:w-72
-          lg:w-80
-          xl:w-96
-
-          /* on mobile hide sidebar when chat is open */
+          flex-shrink-0 border-r border-border
+          w-full md:w-80 lg:w-96
           ${mobileView === "chat" ? "hidden" : "flex flex-col"}
           md:flex md:flex-col
         `}
@@ -100,9 +94,7 @@ const registerUser = async () => {
 
       <div
         className={`
-          flex-1 flex flex-col min-w-0
-
-          /* on mobile hide chat window when sidebar is showing */
+          flex-1 flex flex-col min-w-0 bg-app
           ${mobileView === "sidebar" ? "hidden" : "flex"}
           md:flex
         `}
@@ -113,12 +105,16 @@ const registerUser = async () => {
             onClose={handleCloseChat}
           />
         ) : (
-          <div className="h-full hidden md:flex items-center justify-center text-[#8696a0] flex-col gap-3">
-            <div className="w-16 h-16 rounded-full bg-[#202c33] flex items-center justify-center text-3xl">
-              <i className="fa-solid fa-message"></i>
+          <div className="h-full hidden md:flex items-center justify-center flex-col gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-elevated border border-border flex items-center justify-center text-accent">
+              <MessageIcon className="w-7 h-7" />
             </div>
-            <p className="text-lg font-medium">Welcome to ChatApp</p>
-            <p className="text-sm">Select a contact to start chatting</p>
+            <div className="text-center">
+              <p className="text-lg font-medium text-text">Select a conversation</p>
+              <p className="text-sm text-muted mt-1">
+                Choose a contact from the sidebar to start chatting
+              </p>
+            </div>
           </div>
         )}
       </div>

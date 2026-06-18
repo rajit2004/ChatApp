@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { api } from "../services/api";
+import { api, skipGlobalLoader } from "../services/api";
+import { PageLoader } from "./ui/Loader";
 
 export default function ProtectedRoute({ children }: { children: any }) {
   const [loading, setLoading] = useState(true);
@@ -9,7 +10,7 @@ export default function ProtectedRoute({ children }: { children: any }) {
   useEffect(() => {
     const check = async () => {
       try {
-        await api.get("/auth/me");
+        await api.get("/auth/me", skipGlobalLoader());
         setAuthenticated(true);
       } catch {
         localStorage.removeItem("token");
@@ -22,14 +23,7 @@ export default function ProtectedRoute({ children }: { children: any }) {
   }, []);
 
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#111b21] text-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#8696a0] text-sm">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader message="Verifying your session..." />;
   }
 
   return authenticated ? children : <Navigate to="/" />;

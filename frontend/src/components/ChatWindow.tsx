@@ -9,6 +9,9 @@ import ClearConfirm from "./chat/ClearConfirm";
 import MessageContextMenu from "./chat/MessageContextMenu";
 import MessageList from "./chat/MessageList";
 import ChatInput from "./chat/ChatInput";
+import IconButton from "./ui/IconButton";
+import { XIcon } from "./ui/Icons";
+import { SectionLoader } from "./ui/Loader";
 
 interface FileData {
   fileUrl?: string;
@@ -27,7 +30,7 @@ export default function ChatWindow({
   const [message, setMessage] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [headerMenu, setHeaderMenu] = useState(false);
-  const [replyTo, setReplyTo] = useState<any>(null); // ✅ reply state
+  const [replyTo, setReplyTo] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -40,8 +43,19 @@ export default function ChatWindow({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isGroup = receiver?.isGroup === true;
 
-  const { messages, setMessages, user, conversationId, receiverStatus, rateLimitSeconds, isReceiverTyping, hasMore, loadMoreMessages, loadingMore } =
-    useChatInit(receiver);
+  const {
+    messages,
+    setMessages,
+    user,
+    conversationId,
+    receiverStatus,
+    rateLimitSeconds,
+    isReceiverTyping,
+    hasMore,
+    loadMoreMessages,
+    loadingMore,
+    initialLoading,
+  } = useChatInit(receiver);
 
   const {
     selectedFile,
@@ -82,7 +96,7 @@ export default function ChatWindow({
     handleStopTyping();
 
     try {
-      const fileData = await uploadFile() as FileData;
+      const fileData = (await uploadFile()) as FileData;
 
       const tempMessage = {
         _id: `temp_${Date.now()}`,
@@ -93,35 +107,35 @@ export default function ChatWindow({
         fileName: fileData?.fileName || null,
         fileType: fileData?.fileType || null,
         createdAt: new Date().toISOString(),
-        //  include reply in optimistic update
-        replyTo: replyTo ? {
-          _id: replyTo._id,
-          text: replyTo.text,
-          fileType: replyTo.fileType,
-          sender: replyTo.sender,
-        } : null,
+        replyTo: replyTo
+          ? {
+              _id: replyTo._id,
+              text: replyTo.text,
+              fileType: replyTo.fileType,
+              sender: replyTo.sender,
+            }
+          : null,
       };
 
       setMessages((prev) => [...prev, tempMessage]);
       setMessage("");
       clearSelectedFile();
-      
-       const textarea = document.querySelector("textarea");
-       if (textarea) {
-         textarea.style.height = "auto";
-        }
+
+      const textarea = document.querySelector("textarea");
+      if (textarea) {
+        textarea.style.height = "auto";
+      }
 
       socket.emit("send_message", {
         conversationId,
         text: message,
         senderId: user._id,
         receiverId: isGroup ? null : receiver._id,
-        replyTo: replyTo?._id || null, //  send reply id to server
+        replyTo: replyTo?._id || null,
         ...fileData,
       });
 
-      setReplyTo(null); //  clear reply after sending
-
+      setReplyTo(null);
     } catch {
       toast.error("Failed to send file");
     }
@@ -165,9 +179,14 @@ export default function ChatWindow({
     setContextMenu({ visible: true, x, y, msgId, isMine });
   };
 
-  return (
-    <div ref={chatContainerRef} className="h-full flex flex-col bg-[#111b21] text-white relative">
+  const getReplyPreview = (reply: any) => {
+    if (reply.text) return reply.text;
+    if (reply.fileType === "image") return "Photo";
+    return "File";
+  };
 
+  return (
+    <div ref={chatContainerRef} className="h-full flex flex-col bg-app relative">
       <ChatHeader
         receiver={receiver}
         receiverStatus={receiverStatus}
@@ -187,68 +206,70 @@ export default function ChatWindow({
       <MessageContextMenu
         contextMenu={contextMenu?.visible ? contextMenu : null}
         messages={messages}
-        onCopy={(text) => { navigator.clipboard.writeText(text); toast.success("Copied!"); }}
+        onCopy={(text) => {
+          navigator.clipboard.writeText(text);
+          toast.success("Copied");
+        }}
         onDelete={deleteMessage}
-        onReply={(msg) => setReplyTo(msg)} // ✅ set reply
+        onReply={(msg) => setReplyTo(msg)}
         onClose={() => setContextMenu(null)}
       />
 
-      <MessageList
-        messages={messages}
-        user={user}
-        isGroup={isGroup}
-        onRightClick={handleRightClick}
-        hasMore={hasMore}
-        loadMoreMessages={loadMoreMessages}
-        loadingMore={loadingMore}
-      />
+      {initialLoading ? (
+        <SectionLoader message="Loading conversation..." />
+      ) : (
+        <MessageList
+          messages={messages}
+          user={user}
+          isGroup={isGroup}
+          onRightClick={handleRightClick}
+          hasMore={hasMore}
+          loadMoreMessages={loadMoreMessages}
+          loadingMore={loadingMore}
+        />
+      )}
 
-      {/* ✅ Typing indicator */}
       {isReceiverTyping && !isGroup && (
-        <div className="px-4 py-1 flex items-center gap-2">
+        <div className="px-4 py-1.5 flex items-center gap-2">
           <div className="flex gap-1 items-center">
-            <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce [animation-delay:0ms]" />
-            <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce [animation-delay:150ms]" />
-            <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce [animation-delay:300ms]" />
+            <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce [animation-delay:0ms]" />
+            <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce [animation-delay:150ms]" />
+            <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce [animation-delay:300ms]" />
           </div>
-          <p className="text-xs text-[#8696a0]">{receiver.username} is typing...</p>
+          <p className="text-xs text-muted">{receiver.username} is typing</p>
         </div>
       )}
 
-      {/* ✅ Reply preview bar above input */}
       {replyTo && (
-        <div className="px-4 py-2 bg-[#1f2c33] border-t border-[#2a3942] flex items-center gap-3">
-          <div className="flex-1 border-l-4 border-[#00a884] pl-3">
-            <p className="text-xs text-[#00a884] font-medium">
+        <div className="px-4 py-2.5 bg-elevated border-t border-border flex items-center gap-3">
+          <div className="flex-1 border-l-2 border-accent pl-3 min-w-0">
+            <p className="text-xs text-accent font-medium">
               {replyTo.sender?.username || "Unknown"}
             </p>
-            <p className="text-xs text-[#8696a0] truncate">
-              {replyTo.text || (replyTo.fileType === "image" ? "📷 Photo" : "📎 File")}
-            </p>
+            <p className="text-xs text-muted truncate">{getReplyPreview(replyTo)}</p>
           </div>
-          <button
-            onClick={() => setReplyTo(null)}
-            className="text-[#8696a0] hover:text-white text-lg transition"
-          >
-            ✕
-          </button>
+          <IconButton label="Cancel reply" onClick={() => setReplyTo(null)}>
+            <XIcon className="w-4 h-4" />
+          </IconButton>
         </div>
       )}
 
-      <ChatInput
-        message={message}
-        setMessage={setMessage}
-        selectedFile={selectedFile}
-        filePreview={filePreview}
-        uploading={uploading}
-        fileInputRef={fileInputRef}
-        onSend={sendMessage}
-        onFileSelect={handleFileSelect}
-        onClearFile={clearSelectedFile}
-        rateLimitSeconds={rateLimitSeconds}
-        onTyping={handleTyping}
-        onStopTyping={handleStopTyping}
-      />
+      {!initialLoading && (
+        <ChatInput
+          message={message}
+          setMessage={setMessage}
+          selectedFile={selectedFile}
+          filePreview={filePreview}
+          uploading={uploading}
+          fileInputRef={fileInputRef}
+          onSend={sendMessage}
+          onFileSelect={handleFileSelect}
+          onClearFile={clearSelectedFile}
+          rateLimitSeconds={rateLimitSeconds}
+          onTyping={handleTyping}
+          onStopTyping={handleStopTyping}
+        />
+      )}
     </div>
   );
 }

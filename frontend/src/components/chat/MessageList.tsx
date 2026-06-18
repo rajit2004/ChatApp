@@ -1,5 +1,17 @@
 import { useRef, useEffect } from "react";
 import FileMessage from "../FileMessage";
+import Loader from "../ui/Loader";
+
+function getReplyPreview(replyTo: any): string | null {
+  if (!replyTo) return null;
+  if (replyTo.fileType === "image") return "Photo";
+  if (replyTo.fileType === "pdf") return "PDF";
+  if (replyTo.fileType === "word") return "Document";
+  if (replyTo.text) {
+    return replyTo.text.length > 60 ? replyTo.text.slice(0, 60) + "..." : replyTo.text;
+  }
+  return "File";
+}
 
 export default function MessageList({
   messages,
@@ -42,39 +54,25 @@ export default function MessageList({
     }
   };
 
-  // ✅ Helper to get reply preview text
-  const getReplyPreview = (replyTo: any) => {
-    if (!replyTo) return null;
-    if (replyTo.fileType === "image") return "📷 Photo";
-    if (replyTo.fileType === "pdf") return "📄 PDF";
-    if (replyTo.fileType === "word") return "📝 Document";
-    if (replyTo.text) return replyTo.text.length > 60
-      ? replyTo.text.slice(0, 60) + "..."
-      : replyTo.text;
-    return "📎 File";
-  };
-
   return (
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-3 md:p-4"
+      className="flex-1 overflow-y-auto scroll-container px-4 py-4 space-y-2"
     >
       {loadingMore && (
-        <p className="text-center text-[#8696a0] text-xs py-2">
-          Loading older messages...
-        </p>
+        <div className="flex justify-center py-2">
+          <Loader size="sm" message="Loading older messages..." />
+        </div>
       )}
 
       {!hasMore && messages.length > 0 && (
-        <p className="text-center text-[#8696a0] text-xs py-2">
-          No more messages
-        </p>
+        <p className="text-center text-muted text-xs py-2">Beginning of conversation</p>
       )}
 
       {messages.length === 0 && (
-        <p className="text-center text-[#8696a0] text-sm mt-10">
-          No messages yet. Say hello! 👋
+        <p className="text-center text-muted text-sm mt-16">
+          No messages yet. Say hello!
         </p>
       )}
 
@@ -89,54 +87,32 @@ export default function MessageList({
           <div
             key={msg._id || i}
             onContextMenu={(e) => onRightClick(e, msg._id, isMine)}
-            style={{
-              display: "flex",
-              justifyContent: isMine ? "flex-end" : "flex-start",
-              marginBottom: "8px",
-            }}
+            className={`flex ${isMine ? "justify-end" : "justify-start"}`}
           >
             <div
-              style={{
-                padding: hasFile && isImageMsg ? "4px" : "8px 12px",
-                borderRadius: "8px",
-                maxWidth: "75%",
-                backgroundColor: isMine ? "#005c4b" : "#202c33",
-                color: "white",
-                cursor: "context-menu",
-                wordBreak: "break-word",
-              }}
+              className={[
+                "max-w-[75%] rounded-lg cursor-context-menu break-words",
+                isMine ? "bg-bubble-sent text-bubble-sent-text" : "bg-bubble-received text-text border border-border shadow-sm",
+                hasFile && isImageMsg ? "p-1" : "px-3 py-2",
+              ].join(" ")}
             >
               {isGroup && !isMine && (
-                <p style={{
-                  fontSize: "11px",
-                  color: "#00a884",
-                  marginBottom: "2px",
-                  padding: hasFile ? "4px 8px 0" : "0",
-                }}>
+                <p className={`text-xs text-accent font-medium mb-1 ${hasFile ? "px-2 pt-1" : ""}`}>
                   {msg.sender?.username || ""}
                 </p>
               )}
 
-              {/* ✅ Reply preview block */}
               {replyPreview && (
-                <div style={{
-                  borderLeft: "3px solid #00a884",
-                  backgroundColor: isMine ? "#004a3b" : "#1a2830",
-                  borderRadius: "4px",
-                  padding: "4px 8px",
-                  marginBottom: "6px",
-                  maxWidth: "100%",
-                }}>
-                  <p style={{ fontSize: "11px", color: "#00a884", marginBottom: "2px" }}>
+                <div
+                  className={[
+                    "border-l-2 border-accent rounded-md px-2.5 py-1.5 mb-2 mx-0.5",
+                    isMine ? "bg-black/15" : "bg-bubble-reply",
+                  ].join(" ")}
+                >
+                  <p className={`text-xs font-medium ${isMine ? "text-bubble-sent-text/90" : "text-accent"}`}>
                     {msg.replyTo?.sender?.username || "Unknown"}
                   </p>
-                  <p style={{
-                    fontSize: "12px",
-                    color: "#8696a0",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}>
+                  <p className={`text-xs truncate ${isMine ? "text-bubble-sent-text/70" : "text-muted"}`}>
                     {replyPreview}
                   </p>
                 </div>
@@ -145,17 +121,18 @@ export default function MessageList({
               {hasFile ? (
                 <FileMessage msg={msg} />
               ) : (
-                <p style={{ fontSize: "14px" }}>{msg.text}</p>
+                <p className="text-sm leading-relaxed">{msg.text}</p>
               )}
 
-              <p style={{
-                fontSize: "10px",
-                color: "#8696a0",
-                textAlign: "right",
-                marginTop: "2px",
-                padding: hasFile && isImageMsg ? "0 4px 4px" : "0",
-              }}>
-                {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              <p
+                className={`text-[10px] text-right mt-1 ${
+                  isMine ? "text-bubble-sent-text/60" : "text-muted"
+                } ${hasFile && isImageMsg ? "px-1 pb-0.5" : ""}`}
+              >
+                {new Date(msg.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </p>
             </div>
           </div>

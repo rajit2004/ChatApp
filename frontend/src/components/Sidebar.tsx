@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { api, skipGlobalLoader } from "../services/api";
 import { socket } from "../socket";
 import InvitationPanel from "./InvitationPanel";
 import CreateGroupModal from "./CreateGroupModel";
@@ -7,7 +7,13 @@ import ProfileModal from "./ProfileModal";
 import { toast } from "react-toastify";
 import { formatLastSeen } from "../../utils/formatLastSeen";
 import { unregisterPushNotifications } from "../utils/pushNotification";
-import "../index.css";
+import Avatar from "./ui/Avatar";
+import Button from "./ui/Button";
+import Input from "./ui/Input";
+import IconButton from "./ui/IconButton";
+import { BellIcon, UsersIcon, ImageIcon, FileIcon } from "./ui/Icons";
+import ThemeToggle from "./ui/ThemeToggle";
+import Loader from "./ui/Loader";
 
 function formatMessageTime(dateStr: string | null | undefined): string {
   if (!dateStr) return "";
@@ -27,10 +33,10 @@ function formatMessageTime(dateStr: string | null | undefined): string {
 function formatLastMessageText(lastMessage: any): string {
   if (!lastMessage) return "";
   if (lastMessage.text) return lastMessage.text;
-  if (lastMessage.fileType === "image") return "📷 Photo";
-  if (lastMessage.fileType === "pdf") return "📄 PDF";
-  if (lastMessage.fileType === "word") return "📝 Document";
-  return "📎 File";
+  if (lastMessage.fileType === "image") return "Photo";
+  if (lastMessage.fileType === "pdf") return "PDF";
+  if (lastMessage.fileType === "word") return "Document";
+  return "File";
 }
 
 export default function Sidebar({
@@ -46,6 +52,7 @@ export default function Sidebar({
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [showInvitations, setShowInvitations] = useState(false);
@@ -54,11 +61,14 @@ export default function Sidebar({
   const [showProfile, setShowProfile] = useState(false);
   const [profileUser, setProfileUser] = useState<any>(null);
 
-  useEffect(() => { fetchContacts(); }, []);
+  useEffect(() => {
+    fetchContacts();
+  }, []);
 
   const fetchContacts = async () => {
     try {
-      const res = await api.get("/conversations/contacts");
+      setContactsLoading(true);
+      const res = await api.get("/conversations/contacts", skipGlobalLoader());
       const seen = new Set();
       const unique = res.data.contacts.filter((c: any) => {
         if (c.isGroup) return true;
@@ -69,10 +79,14 @@ export default function Sidebar({
       setContacts(unique);
     } catch (err) {
       console.log("Failed to load contacts:", err);
+    } finally {
+      setContactsLoading(false);
     }
   };
 
-  useEffect(() => { fetchPendingInvitations(); }, []);
+  useEffect(() => {
+    fetchPendingInvitations();
+  }, []);
 
   const fetchPendingInvitations = async () => {
     try {
@@ -100,9 +114,7 @@ export default function Sidebar({
       }
     });
 
-    socket.on("invitation_rejected", () => {
-      console.log("Invitation was rejected");
-    });
+    socket.on("invitation_rejected", () => {});
 
     socket.on("added_to_group", (conversation) => {
       setContacts((prev) => [
@@ -116,7 +128,6 @@ export default function Sidebar({
       ]);
     });
 
-    // Update last message preview in real time
     socket.on("last_message_update", ({ conversationId, lastMessage }) => {
       setContacts((prev) =>
         prev.map((c) =>
@@ -205,16 +216,16 @@ export default function Sidebar({
   };
 
   const handleLogout = async () => {
-  try {
-    await unregisterPushNotifications(api);
-    await api.post("/auth/logout");
-    localStorage.removeItem("token");
-    socket.disconnect();
-    window.location.href = "/";
-  } catch (err) {
-    console.log("Logout failed:", err);
-  }
-};
+    try {
+      await unregisterPushNotifications(api);
+      await api.post("/auth/logout");
+      localStorage.removeItem("token");
+      socket.disconnect();
+      window.location.href = "/";
+    } catch (err) {
+      console.log("Logout failed:", err);
+    }
+  };
 
   const handleCreateGroup = async (name: string, members: any[]) => {
     try {
@@ -250,62 +261,64 @@ export default function Sidebar({
     const status = inviteStatuses[user._id];
     if (status === "contacts") {
       return (
-        <button
-          onClick={() => { onSelectUser(user); setQuery(""); }}
-          className="text-xs px-3 py-1 rounded-full bg-[#00a884] text-white"
+        <Button
+          size="sm"
+          onClick={() => {
+            onSelectUser(user);
+            setQuery("");
+          }}
         >
           Message
-        </button>
+        </Button>
       );
     }
     if (status === "pending") {
       return (
-        <span className="text-xs px-3 py-1 rounded-full bg-[#2a3942] text-[#8696a0]">
+        <span className="text-xs px-3 py-1.5 rounded-md bg-elevated text-muted border border-border">
           Pending
         </span>
       );
     }
     return (
-      <button
-        onClick={() => handleSendInvite(user)}
-        className="text-xs px-3 py-1 rounded-full bg-[#00a884] text-white"
-      >
+      <Button size="sm" onClick={() => handleSendInvite(user)}>
         Invite
-      </button>
+      </Button>
     );
   };
 
   const activeUser = profileUser || currentUser;
 
   return (
-    <div className="h-full flex flex-col bg-[#111b21] text-white">
-
-      {/* ── Top Header ── */}
-      <div className="px-4 py-3 bg-[#202c33] flex items-center justify-between flex-shrink-0">
-        <p className="font-semibold text-lg">Chats</p>
-        <div className="flex items-center gap-3">
-          <button
+    <div className="h-full flex flex-col bg-surface">
+      <div className="px-4 py-3.5 border-b border-border flex items-center justify-between flex-shrink-0">
+        <h1 className="font-semibold text-lg tracking-tight text-text">Messages</h1>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <IconButton
+            label="Invitations"
             onClick={() => setShowInvitations(!showInvitations)}
-            className="relative p-1"
+            active={showInvitations}
+            className="relative"
           >
-            <i className="fa-regular fa-bell text-white text-base"></i>
+            <BellIcon className="w-5 h-5" />
             {pendingInvitations.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-danger rounded-full text-[10px] font-medium flex items-center justify-center text-white">
                 {pendingInvitations.length}
               </span>
             )}
-          </button>
-          <button
+          </IconButton>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setShowCreateGroup(true)}
-            className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-[#2a3942] text-white hover:bg-[#3a4942] transition"
+            className="flex items-center gap-1.5 ml-1"
           >
-            <i className="fa-solid fa-user-group text-white text-xs"></i>
-            <span>Group</span>
-          </button>
+            <UsersIcon className="w-3.5 h-3.5" />
+            Group
+          </Button>
         </div>
       </div>
 
-      {/* ── Invitation Panel ── */}
       {showInvitations && (
         <InvitationPanel
           invitations={pendingInvitations}
@@ -314,41 +327,34 @@ export default function Sidebar({
         />
       )}
 
-      {/* ── Search Bar ── */}
-      <div className="px-3 py-2 flex-shrink-0">
-        <input
+      <div className="px-3 py-2.5 flex-shrink-0">
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search or start new chat"
-          className="w-full px-4 py-2 rounded-lg bg-[#202c33] text-white text-sm outline-none placeholder-[#8696a0]"
+          placeholder="Search people..."
         />
       </div>
 
-      {/* ── Search Results / Contacts List ── */}
       {query.trim() ? (
         <div className="flex-1 scroll-container overflow-y-auto">
           {loading && (
-            <p className="text-[#8696a0] text-sm px-4 py-3">Searching...</p>
+            <div className="flex justify-center py-6">
+              <Loader size="sm" />
+            </div>
           )}
           {!loading && searchResults.length === 0 && (
-            <p className="text-[#8696a0] text-sm px-4 py-3">No users found</p>
+            <p className="text-muted text-sm px-4 py-3">No users found</p>
           )}
           {searchResults.map((user) => (
             <div
               key={user._id}
-              className="flex items-center justify-between px-4 py-3 hover:bg-[#202c33]"
+              className="flex items-center justify-between px-4 py-3 hover:bg-elevated transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center font-bold uppercase overflow-hidden">
-                  {user.profilePic ? (
-                    <img src={user.profilePic} className="w-full h-full object-cover" alt={user.username} />
-                  ) : (
-                    user.username[0]
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium">{user.username}</p>
-                  <p className="text-sm text-[#8696a0]">{user.email}</p>
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar src={user.profilePic} name={user.username} />
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{user.username}</p>
+                  <p className="text-xs text-muted truncate">{user.email}</p>
                 </div>
               </div>
               {renderInviteButton(user)}
@@ -357,97 +363,95 @@ export default function Sidebar({
         </div>
       ) : (
         <div className="flex-1 no-scrollbar overflow-y-auto">
-          {contacts.length === 0 && (
-            <p className="text-[#8696a0] text-sm px-4 py-6 text-center">
-              No contacts yet. Search to find people.
+          {contactsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader message="Loading chats..." size="sm" />
+            </div>
+          ) : contacts.length === 0 ? (
+            <p className="text-muted text-sm px-4 py-8 text-center">
+              No conversations yet. Search to find people.
             </p>
-          )}
-          {contacts.map((contact) => {
+          ) : (
+          contacts.map((contact) => {
             const userId = contact.user?._id;
             const status = userId && userStatuses ? userStatuses[userId] : undefined;
             const isOnline = status === null;
+            const displayName = contact.isGroup ? contact.groupName : contact.user?.username;
 
             return (
               <div
                 key={contact.conversationId}
                 onClick={() => onSelectUser(contact.isGroup ? contact : contact.user)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[#202c33] cursor-pointer border-b border-[#2a3942] border-opacity-40"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-elevated cursor-pointer transition-colors border-b border-border/50"
               >
-                {/* Avatar */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-11 h-11 rounded-full bg-[#00a884] flex items-center justify-center font-bold uppercase overflow-hidden">
-                    {contact.isGroup ? (
-                      contact.groupName[0]
-                    ) : contact.user?.profilePic ? (
-                      <img src={contact.user.profilePic} className="w-full h-full object-cover" alt={contact.user.username} />
-                    ) : (
-                      contact.user?.username[0]
-                    )}
-                  </div>
-                  {!contact.isGroup && isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-[#111b21]" />
-                  )}
-                </div>
+                <Avatar
+                  src={contact.isGroup ? null : contact.user?.profilePic}
+                  name={displayName || "?"}
+                  size="lg"
+                  online={!contact.isGroup && isOnline}
+                />
 
-                {/* Name + last message */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium truncate">
-                      {contact.isGroup ? contact.groupName : contact.user?.username}
-                    </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm truncate">{displayName}</p>
                     {contact.lastMessage?.createdAt && (
-                      <span className="text-xs text-[#8696a0] flex-shrink-0 ml-2">
+                      <span className="text-xs text-muted flex-shrink-0">
                         {formatMessageTime(contact.lastMessage.createdAt)}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[#8696a0] truncate">
-                    {contact.lastMessage
-                      ? formatLastMessageText(contact.lastMessage)
-                      : contact.isGroup
-                      ? `${contact.participants?.length} members`
-                      : isOnline
-                      ? "online"
-                      : status
-                      ? formatLastSeen(status)
-                      : "offline"}
+                  <p className="text-xs text-muted truncate mt-0.5">
+                    {contact.lastMessage ? (
+                      <span className="flex items-center gap-1">
+                        {contact.lastMessage.fileType === "image" && (
+                          <ImageIcon className="w-3 h-3 inline flex-shrink-0" />
+                        )}
+                        {contact.lastMessage.fileType &&
+                          contact.lastMessage.fileType !== "image" && (
+                            <FileIcon className="w-3 h-3 inline flex-shrink-0" />
+                          )}
+                        {formatLastMessageText(contact.lastMessage)}
+                      </span>
+                    ) : contact.isGroup ? (
+                      `${contact.participants?.length} members`
+                    ) : isOnline ? (
+                      <span className="text-online">Online</span>
+                    ) : status ? (
+                      formatLastSeen(status)
+                    ) : (
+                      "Offline"
+                    )}
                   </p>
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
       )}
 
-      {/* ── Bottom Bar ── */}
-      <div className="px-4 py-3 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between flex-shrink-0">
+      <div className="px-4 py-3 border-t border-border flex items-center justify-between flex-shrink-0 bg-elevated/50">
         <button
           onClick={() => setShowProfile(true)}
-          className="flex items-center gap-3 hover:opacity-80 transition text-left"
+          className="flex items-center gap-3 hover:opacity-80 transition text-left min-w-0"
         >
-          <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center font-bold uppercase text-sm overflow-hidden flex-shrink-0">
-            {activeUser?.profilePic ? (
-              <img src={activeUser.profilePic} className="w-full h-full object-cover" alt="my profile" />
-            ) : (
-              activeUser?.username?.[0] || "?"
-            )}
-          </div>
-          <div>
-            <p className="text-sm font-medium text-white leading-tight">
+          <Avatar
+            src={activeUser?.profilePic}
+            name={activeUser?.username || "?"}
+            size="md"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">
               {activeUser?.username || "..."}
             </p>
-            <p className="text-xs text-[#8696a0]">My Profile</p>
+            <p className="text-xs text-muted">View profile</p>
           </div>
         </button>
-        <button
-          onClick={handleLogout}
-          className="text-xs px-3 py-1.5 rounded-lg bg-[#2a3942] text-white hover:bg-red-600 transition"
-        >
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
           Logout
-        </button>
+        </Button>
       </div>
 
-      {/* ── Modals ── */}
       {showCreateGroup && (
         <CreateGroupModal
           contacts={contacts}
